@@ -1,6 +1,6 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Get IP'
+description: 'Fetch the caller IP from an IP lambda endpoint'
+author: 'yamut'
 inputs:
   api_key:
     required: true
@@ -9,5 +9,5 @@ inputs:
     required: true
     description: 'IP lambda endpoint url'
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'

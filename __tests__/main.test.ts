@@ -1,29 +1,51 @@
-import {wait} from '../src/wait'
-import * as process from 'process'
-import * as cp from 'child_process'
-import * as path from 'path'
-import {expect, test} from '@jest/globals'
+import {jest, describe, beforeEach, it, expect} from '@jest/globals'
 
-test('throws invalid number', async () => {
-  const input = parseInt('foo', 10)
-  await expect(wait(input)).rejects.toThrow('milliseconds not a number')
-})
+const getInput = jest.fn<(name: string) => string>()
+const setOutput = jest.fn()
+const setFailed = jest.fn()
+const info = jest.fn()
+const getJson = jest.fn()
 
-test('wait 500 ms', async () => {
-  const start = new Date()
-  await wait(500)
-  const end = new Date()
-  var delta = Math.abs(end.getTime() - start.getTime())
-  expect(delta).toBeGreaterThan(450)
-})
+jest.unstable_mockModule('@actions/core', () => ({
+  getInput,
+  setOutput,
+  setFailed,
+  info
+}))
 
-// shows how the runner will run a javascript action with env / stdout protocol
-test('test runs', () => {
-  process.env['INPUT_MILLISECONDS'] = '500'
-  const np = process.execPath
-  const ip = path.join(__dirname, '..', 'lib', 'main.js')
-  const options: cp.ExecFileSyncOptions = {
-    env: process.env
-  }
-  // console.log(cp.execFileSync(np, [ip], options).toString())
+jest.unstable_mockModule('@actions/http-client', () => ({
+  HttpClient: jest
+    .fn()
+    .mockImplementation(() => ({getJson, requestOptions: undefined}))
+}))
+
+const {run} = await import('../src/main.js')
+
+describe('run', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('sets the ip output from the endpoint response', async () => {
+    getInput.mockImplementation(name => {
+      if (name === 'api_key') return 'test-api-key'
+      if (name === 'endpoint_url') return 'https://example.com/ip'
+      return ''
+    })
+    getJson.mockResolvedValue({result: {ip: '1.2.3.4'}})
+
+    await run()
+
+    expect(getJson).toHaveBeenCalledWith('https://example.com/ip')
+    expect(setOutput).toHaveBeenCalledWith('ip', '1.2.3.4')
+  })
+
+  it('fails the action when the request throws', async () => {
+    getInput.mockReturnValue('')
+    getJson.mockRejectedValue(new Error('request failed'))
+
+    await run()
+
+    expect(setFailed).toHaveBeenCalledWith('request failed')
+  })
 })

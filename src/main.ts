@@ -4,7 +4,7 @@ import {HttpClient} from '@actions/http-client'
 interface GetIpResponse {
   ip: string
 }
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   try {
     const apiKey: string = core.getInput('api_key')
     const endpointUrl: string = core.getInput('endpoint_url')
